@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { createClient } from '@/lib/supabase/server'
-import { Plus, SearchIcon } from 'lucide-react'
+import { Plus, SearchIcon, Package, Filter, Grid3X3, List } from 'lucide-react'
 
 interface PageProps {
   searchParams: Promise<{
@@ -21,7 +21,6 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
   const search = params.search
   const category = params.category
 
-  // Get current user's business
   const { data: { user } } = await supabase.auth.getUser()
   const { data: profile } = await supabase
     .from('profiles')
@@ -29,7 +28,6 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
     .eq('id', user?.id)
     .single()
 
-  // Get all categories scoped to business
   let categoriesQuery = supabase.from('items').select('category')
   if (profile?.business_id) {
     categoriesQuery = categoriesQuery.eq('business_id', profile.business_id)
@@ -40,17 +38,12 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
     ? Array.from(new Set(allItems.map((item) => item.category))).sort()
     : []
 
-  // Build query
-  let query = supabase
-    .from('items')
-    .select('*')
+  let query = supabase.from('items').select('*')
 
-  // Scope to business
   if (profile?.business_id) {
     query = query.eq('business_id', profile.business_id)
   }
 
-  // Apply filters
   if (search) {
     query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`)
   }
@@ -62,14 +55,20 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
   const { data: items, error } = await query.order('category').order('name')
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold">Inventory Management</h2>
-          <p className="text-gray-600 mt-1">Manage your rental items</p>
+    <div className="space-y-6 animate-fade-in">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in-up">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center shadow-md shadow-purple-200 animate-float">
+            <Package className="h-5 w-5 text-white" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900 heading">Inventory Management</h2>
+            <p className="text-sm text-slate-500">Manage your rental items</p>
+          </div>
         </div>
         <Link href="/admin/inventory/new">
-          <Button>
+          <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md shadow-blue-200 rounded-xl transition-all hover:shadow-lg">
             <Plus className="h-4 w-4 mr-2" />
             Add Item
           </Button>
@@ -77,55 +76,73 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
       </div>
 
       {/* Filters */}
-      <Card>
+      <Card className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-2xl shadow-sm">
         <CardContent className="pt-6">
           <form method="GET" className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
-              <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <SearchIcon className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
               <Input
                 name="search"
-                placeholder="Search items..."
+                placeholder="Search items by name or description..."
                 defaultValue={search}
-                className="pl-10"
+                className="pl-10 h-11 rounded-xl border-slate-200 bg-white/80 focus:border-blue-400 focus:ring-blue-400/20 transition-all"
               />
             </div>
-            <Select name="category" defaultValue={category || 'all'}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="All Categories" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {categories.map((cat) => (
-                  <SelectItem key={cat} value={cat}>
-                    {cat}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button type="submit">Filter</Button>
+            <div className="flex gap-3">
+              <div className="relative">
+                <Filter className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4 pointer-events-none" />
+                <Select name="category" defaultValue={category || 'all'}>
+                  <SelectTrigger className="w-full md:w-48 h-11 pl-10 rounded-xl border-slate-200 bg-white/80">
+                    <SelectValue placeholder="All Categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button type="submit" className="h-11 px-6 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-sm">
+                Filter
+              </Button>
+            </div>
           </form>
         </CardContent>
       </Card>
 
       {/* Items Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            {items?.length || 0} Item{items?.length === 1 ? '' : 's'}
-          </CardTitle>
+      <Card className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-2xl shadow-sm overflow-hidden">
+        <CardHeader className="border-b border-slate-100 bg-slate-50/50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="h-6 w-1 rounded-full bg-gradient-to-b from-blue-500 to-indigo-500" />
+              <CardTitle className="text-base font-semibold text-slate-700">
+                {items?.length || 0} Item{items?.length === 1 ? '' : 's'}
+              </CardTitle>
+            </div>
+            <div className="flex items-center gap-2 text-slate-400">
+              <List className="h-4 w-4" />
+              <Grid3X3 className="h-4 w-4 text-slate-600" />
+            </div>
+          </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+            <div className="mx-6 mt-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center gap-2">
               Error loading items. Please try again.
             </div>
           )}
 
           {items && items.length === 0 && (
-            <div className="text-center py-8">
-              <p className="text-gray-500">No items found</p>
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="p-4 rounded-full bg-slate-50 mb-4">
+                <Package className="h-10 w-10 text-slate-300" />
+              </div>
+              <p className="text-slate-500 font-medium">No items found</p>
+              <p className="text-xs text-slate-400 mt-1">Try adjusting your search or filters</p>
               <Link href="/admin/inventory">
-                <Button variant="outline" className="mt-4">Clear Filters</Button>
+                <Button variant="outline" className="mt-4 rounded-xl">Clear Filters</Button>
               </Link>
             </div>
           )}
@@ -134,44 +151,58 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Price</TableHead>
-                    <TableHead>Total Quantity</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
+                  <TableRow className="border-slate-100 bg-slate-50/50">
+                    <TableHead className="text-slate-600 font-semibold text-xs uppercase tracking-wider">Name</TableHead>
+                    <TableHead className="text-slate-600 font-semibold text-xs uppercase tracking-wider">Category</TableHead>
+                    <TableHead className="text-slate-600 font-semibold text-xs uppercase tracking-wider">Price</TableHead>
+                    <TableHead className="text-slate-600 font-semibold text-xs uppercase tracking-wider">Qty</TableHead>
+                    <TableHead className="text-slate-600 font-semibold text-xs uppercase tracking-wider">Status</TableHead>
+                    <TableHead className="text-slate-600 font-semibold text-xs uppercase tracking-wider">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {items.map((item) => (
-                    <TableRow key={item.id}>
+                  {items.map((item, i) => (
+                    <TableRow key={item.id} className={`border-slate-100 hover:bg-blue-50/30 transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
                       <TableCell>
-                        <div>
-                          <div className="font-medium">{item.name}</div>
-                          {item.description && (
-                            <div className="text-sm text-gray-500 line-clamp-1">
-                              {item.description}
-                            </div>
-                          )}
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-xs font-bold shadow-sm">
+                            {item.name.charAt(0)}
+                          </div>
+                          <div>
+                            <div className="font-semibold text-slate-900">{item.name}</div>
+                            {item.description && (
+                              <div className="text-xs text-slate-400 line-clamp-1 max-w-[200px]">
+                                {item.description}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </TableCell>
-                      <TableCell>{item.category}</TableCell>
-                      <TableCell className="font-semibold">
-                        ${item.price.toFixed(2)}
-                      </TableCell>
-                      <TableCell>{item.total_quantity}</TableCell>
                       <TableCell>
-                        <Badge variant={item.active ? 'default' : 'secondary'}>
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-600">
+                          {item.category}
+                        </span>
+                      </TableCell>
+                      <TableCell className="font-semibold text-blue-600">
+                        ${Number(item.price).toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-slate-700">
+                        <span className="font-medium">{item.total_quantity}</span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          className="rounded-full text-xs px-3 py-0.5"
+                          variant={item.active ? 'default' : 'secondary'}
+                        >
                           {item.active ? 'Active' : 'Inactive'}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="flex gap-2">
-                          <Link href={`/admin/inventory/${item.id}`}>
-                            <Button size="sm" variant="outline">Edit</Button>
-                          </Link>
-                        </div>
+                        <Link href={`/admin/inventory/${item.id}`}>
+                          <Button size="sm" variant="outline" className="rounded-lg border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-all">
+                            Edit
+                          </Button>
+                        </Link>
                       </TableCell>
                     </TableRow>
                   ))}

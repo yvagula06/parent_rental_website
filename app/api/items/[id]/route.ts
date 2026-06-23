@@ -36,8 +36,8 @@ export async function PATCH(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Build update query scoped to business
-    let updateQuery = supabase
+    // Update item (RLS policy handles business scoping automatically)
+    const { data: item, error } = await supabase
       .from('items')
       .update({
         name,
@@ -50,13 +50,8 @@ export async function PATCH(
         updated_at: new Date().toISOString(),
       })
       .eq('id', params.id)
-
-    // Scope to business if user has one
-    if (profile.business_id) {
-      updateQuery = updateQuery.eq('business_id', profile.business_id)
-    }
-
-    const { data: item, error } = await updateQuery.select().single()
+      .select()
+      .single()
 
     if (error || !item) {
       console.error('Item update error:', error)
