@@ -65,8 +65,8 @@ export async function PATCH(
       }
     }
 
-    // Update booking
-    const { data: booking, error } = await supabase
+    // Build update query scoped to business
+    let updateQuery = supabase
       .from('bookings')
       .update({
         status,
@@ -74,8 +74,12 @@ export async function PATCH(
         updated_at: new Date().toISOString(),
       })
       .eq('id', params.id)
-      .select()
-      .single()
+
+    if (profile.business_id) {
+      updateQuery = updateQuery.eq('business_id', profile.business_id)
+    }
+
+    const { data: booking, error } = await updateQuery.select().single()
 
     if (error || !booking) {
       console.error('Booking update error:', error)
@@ -160,19 +164,25 @@ export async function DELETE(
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, business_id')
       .eq('id', user.id)
       .single()
 
-    if (!profile || profile.role !== 'admin') {
+    if (!profile || !['owner', 'admin', 'staff'].includes(profile.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Delete booking (booking_items will cascade delete)
-    const { error } = await supabase
+    // Build delete query scoped to business
+    let deleteQuery = supabase
       .from('bookings')
       .delete()
       .eq('id', params.id)
+
+    if (profile.business_id) {
+      deleteQuery = deleteQuery.eq('business_id', profile.business_id)
+    }
+
+    const { error } = await deleteQuery
 
     if (error) {
       console.error('Booking delete error:', error)

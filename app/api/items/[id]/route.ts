@@ -28,7 +28,7 @@ export async function PATCH(
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, business_id')
       .eq('id', user.id)
       .single()
 
@@ -36,8 +36,8 @@ export async function PATCH(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Update item
-    const { data: item, error } = await supabase
+    // Build update query scoped to business
+    let updateQuery = supabase
       .from('items')
       .update({
         name,
@@ -50,8 +50,13 @@ export async function PATCH(
         updated_at: new Date().toISOString(),
       })
       .eq('id', params.id)
-      .select()
-      .single()
+
+    // Scope to business if user has one
+    if (profile.business_id) {
+      updateQuery = updateQuery.eq('business_id', profile.business_id)
+    }
+
+    const { data: item, error } = await updateQuery.select().single()
 
     if (error || !item) {
       console.error('Item update error:', error)
@@ -87,7 +92,7 @@ export async function DELETE(
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, business_id')
       .eq('id', user.id)
       .single()
 
@@ -95,11 +100,18 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Delete item
-    const { error } = await supabase
+    // Build delete query scoped to business
+    let deleteQuery = supabase
       .from('items')
       .delete()
       .eq('id', params.id)
+
+    // Scope to business if user has one
+    if (profile.business_id) {
+      deleteQuery = deleteQuery.eq('business_id', profile.business_id)
+    }
+
+    const { error } = await deleteQuery
 
     if (error) {
       console.error('Item delete error:', error)

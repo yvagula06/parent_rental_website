@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { format } from 'date-fns'
@@ -51,7 +51,8 @@ interface BookingWithItems {
   }[]
 }
 
-export default function BookingDetailPage({ params }: { params: { id: string } }) {
+export default function BookingDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const router = useRouter()
   const [booking, setBooking] = useState<BookingWithItems | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -63,11 +64,11 @@ export default function BookingDetailPage({ params }: { params: { id: string } }
 
   useEffect(() => {
     fetchBooking()
-  }, [params.id])
+  }, [id])
 
   const fetchBooking = async () => {
     try {
-      const response = await fetch(`/api/bookings?id=${params.id}`)
+      const response = await fetch(`/api/bookings?id=${id}`)
       if (!response.ok) {
         throw new Error('Failed to fetch booking')
       }
@@ -88,7 +89,7 @@ export default function BookingDetailPage({ params }: { params: { id: string } }
 
     setIsSaving(true)
     try {
-      const response = await fetch(`/api/bookings/${params.id}`, {
+      const response = await fetch(`/api/bookings/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -118,7 +119,7 @@ export default function BookingDetailPage({ params }: { params: { id: string } }
 
     setIsDeleting(true)
     try {
-      const response = await fetch(`/api/bookings/${params.id}`, {
+      const response = await fetch(`/api/bookings/${id}`, {
         method: 'DELETE',
       })
 

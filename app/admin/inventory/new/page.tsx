@@ -26,7 +26,7 @@ const itemSchema = z.object({
   active: z.boolean(),
 })
 
-type ItemFormValues = z.input<typeof itemSchema>
+type ItemFormValues = z.infer<typeof itemSchema>
 
 const CATEGORIES = [
   'Seating',

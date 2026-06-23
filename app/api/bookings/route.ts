@@ -197,18 +197,18 @@ export async function GET(request: Request) {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, business_id')
       .eq('id', user.id)
       .single()
 
-    if (!profile || profile.role !== 'admin') {
+    if (!profile || !['owner', 'admin', 'staff'].includes(profile.role)) {
       return NextResponse.json(
         { error: 'Forbidden' },
         { status: 403 }
       )
     }
 
-    const { data: bookings, error } = await supabase
+    let bookingsQuery = supabase
       .from('bookings')
       .select(`
         *,
@@ -224,6 +224,12 @@ export async function GET(request: Request) {
         )
       `)
       .order('created_at', { ascending: false })
+
+    if (profile.business_id) {
+      bookingsQuery = bookingsQuery.eq('business_id', profile.business_id)
+    }
+
+    const { data: bookings, error } = await bookingsQuery
 
     if (error) {
       return NextResponse.json(

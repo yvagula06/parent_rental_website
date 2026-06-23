@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Loader2 } from 'lucide-react'
@@ -28,7 +28,7 @@ const itemSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   category: z.string().min(2, 'Category is required'),
   description: z.string().optional(),
-  image_url: z.string().url('Must be a valid URL').optional().or(z.literal('')),
+  image_url: z.string().optional(),
   price: z.number().min(0, 'Price must be 0 or greater'),
   total_quantity: z.number().int().min(0, 'Quantity must be 0 or greater'),
   active: z.boolean(),
@@ -50,7 +50,8 @@ const CATEGORIES = [
   'Other',
 ]
 
-export default function EditInventoryPage({ params }: { params: { id: string } }) {
+export default function EditInventoryPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -72,11 +73,11 @@ export default function EditInventoryPage({ params }: { params: { id: string } }
 
   useEffect(() => {
     fetchItem()
-  }, [params.id])
+  }, [id])
 
   const fetchItem = async () => {
     try {
-      const response = await fetch(`/api/items?id=${params.id}`)
+      const response = await fetch(`/api/items?id=${id}`)
       if (!response.ok) {
         throw new Error('Failed to fetch item')
       }
@@ -103,7 +104,7 @@ export default function EditInventoryPage({ params }: { params: { id: string } }
     setIsSubmitting(true)
 
     try {
-      const response = await fetch(`/api/items/${params.id}`, {
+      const response = await fetch(`/api/items/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -129,7 +130,7 @@ export default function EditInventoryPage({ params }: { params: { id: string } }
   const handleDelete = async () => {
     setIsDeleting(true)
     try {
-      const response = await fetch(`/api/items/${params.id}`, {
+      const response = await fetch(`/api/items/${id}`, {
         method: 'DELETE',
       })
 
