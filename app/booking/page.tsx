@@ -728,4 +728,4 @@ export default function BookingPage() {
       </div>
     </div>
   )
-}
+}
