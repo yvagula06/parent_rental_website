@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service-client'
 import { validateBookingAvailability } from '@/lib/services/availability'
 import {
   sendCustomerBookingRequest,
@@ -48,9 +49,10 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createClient()
+    const serviceSupabase = await createServiceClient()
 
-    // Create booking
-    const { data: booking, error: bookingError } = await supabase
+    // Create booking (use service client to bypass RLS for public submissions)
+    const { data: booking, error: bookingError } = await serviceSupabase
       .from('bookings')
       .insert({
         customer_name,
@@ -75,7 +77,7 @@ export async function POST(request: Request) {
       )
     }
 
-    // Create booking items
+    // Create booking items (use service client to bypass RLS)
     const bookingItems = items.map((item: any) => ({
       booking_id: booking.id,
       item_id: item.item_id,
@@ -83,13 +85,13 @@ export async function POST(request: Request) {
       item_price: item.item_price,
     }))
 
-    const { error: itemsError } = await supabase
+    const { error: itemsError } = await serviceSupabase
       .from('booking_items')
       .insert(bookingItems)
 
     if (itemsError) {
       // Rollback: delete the booking if items insertion fails
-      await supabase.from('bookings').delete().eq('id', booking.id)
+      await serviceSupabase.from('bookings').delete().eq('id', booking.id)
       console.error('Booking items creation error:', itemsError)
       return NextResponse.json(
         { error: 'Failed to create booking items' },
