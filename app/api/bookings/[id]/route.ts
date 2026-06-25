@@ -65,7 +65,8 @@ export async function PATCH(
       }
     }
 
-    // Build update query scoped to business
+    // Build update query — allow admin to update bookings in their business
+    // OR bookings with no business_id (public bookings)
     let updateQuery = supabase
       .from('bookings')
       .update({
@@ -76,7 +77,7 @@ export async function PATCH(
       .eq('id', params.id)
 
     if (profile.business_id) {
-      updateQuery = updateQuery.eq('business_id', profile.business_id)
+      updateQuery = updateQuery.or(`business_id.eq.${profile.business_id},business_id.is.null`)
     }
 
     const { data: booking, error } = await updateQuery.select().single()

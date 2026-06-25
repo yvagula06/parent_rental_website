@@ -44,8 +44,11 @@ export default async function AdminBookingsPage({ searchParams }: PageProps) {
       created_at
     `)
 
+  // Filter by business_id only if admin has one set.
+  // Also show bookings with NULL business_id (public bookings) by using
+  // an OR filter when the admin has a business_id.
   if (profile?.business_id) {
-    query = query.eq('business_id', profile.business_id)
+    query = query.or(`business_id.eq.${profile.business_id},business_id.is.null`)
   }
 
   if (search) {

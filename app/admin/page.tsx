@@ -41,10 +41,10 @@ export default async function AdminDashboard() {
     .in('status', ['pending', 'confirmed'])
 
   if (businessId) {
-    bookingsQuery = bookingsQuery.eq('business_id', businessId)
-    itemsCountQuery = itemsCountQuery.eq('business_id', businessId)
-    recentQuery = recentQuery.eq('business_id', businessId)
-    upcomingQuery = upcomingQuery.eq('business_id', businessId)
+    bookingsQuery = bookingsQuery.or(`business_id.eq.${businessId},business_id.is.null`)
+    itemsCountQuery = itemsCountQuery.or(`business_id.eq.${businessId},business_id.is.null`)
+    recentQuery = recentQuery.or(`business_id.eq.${businessId},business_id.is.null`)
+    upcomingQuery = upcomingQuery.or(`business_id.eq.${businessId},business_id.is.null`)
   }
 
   const { data: allBookings } = await bookingsQuery

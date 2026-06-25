@@ -215,6 +215,26 @@ CREATE POLICY "Business members can delete booking items"
     ));
 
 -- ============================================
+-- PUBLIC BOOKINGS ACCESS
+-- ============================================
+-- Allow authenticated users (admins) to also see bookings with no business_id
+-- (these are public bookings created from /booking without a specific business)
+CREATE POLICY "Authenticated users can view unassigned bookings"
+    ON bookings FOR SELECT
+    TO authenticated
+    USING (business_id IS NULL);
+
+-- Same for booking_items belonging to unassigned bookings
+CREATE POLICY "Authenticated users can view unassigned booking items"
+    ON booking_items FOR SELECT
+    TO authenticated
+    USING (EXISTS (
+        SELECT 1 FROM bookings b
+        WHERE b.id = booking_id
+        AND b.business_id IS NULL
+    ));
+
+-- ============================================
 -- UPDATE AUTO-PROFILE TRIGGER
 -- ============================================
 -- Update the handle_new_user function to include full_name
