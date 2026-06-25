@@ -9,7 +9,7 @@ import { format } from 'date-fns'
 import { Calendar as CalendarIcon, Loader2, Minus, Plus, ShoppingCart } from 'lucide-react'
 import { toast } from 'sonner'
 
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
@@ -260,19 +260,13 @@ export default function BusinessBookingForm({
                       <FormItem className="flex flex-col">
                         <FormLabel>Event Date</FormLabel>
                         <Popover>
-                          <PopoverTrigger>
-                            <FormControl>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  'w-full pl-3 text-left font-normal',
-                                  !field.value && 'text-muted-foreground'
-                                )}
-                              >
-                                {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                              </Button>
-                            </FormControl>
+                          <PopoverTrigger className={cn(
+                            buttonVariants({ variant: 'outline' }),
+                            'w-full pl-3 text-left font-normal justify-start gap-2 h-11 rounded-xl border-slate-200 bg-white/80 hover:border-blue-300 transition-all',
+                            !field.value && 'text-muted-foreground'
+                          )}>
+                            <CalendarIcon className="h-4 w-4 shrink-0" />
+                            {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
                           </PopoverTrigger>
                           <PopoverContent className="w-auto p-0" align="start">
                             <Calendar
@@ -294,19 +288,13 @@ export default function BusinessBookingForm({
                       <FormItem className="flex flex-col">
                         <FormLabel>Return Date</FormLabel>
                         <Popover>
-                          <PopoverTrigger>
-                            <FormControl>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  'w-full pl-3 text-left font-normal',
-                                  !field.value && 'text-muted-foreground'
-                                )}
-                              >
-                                {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                              </Button>
-                            </FormControl>
+                          <PopoverTrigger className={cn(
+                            buttonVariants({ variant: 'outline' }),
+                            'w-full pl-3 text-left font-normal justify-start gap-2 h-11 rounded-xl border-slate-200 bg-white/80 hover:border-blue-300 transition-all',
+                            !field.value && 'text-muted-foreground'
+                          )}>
+                            <CalendarIcon className="h-4 w-4 shrink-0" />
+                            {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
                           </PopoverTrigger>
                           <PopoverContent className="w-auto p-0" align="start">
                             <Calendar
