@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createClient()
-    const serviceSupabase = await createServiceClient()
+    const serviceSupabase = createServiceClient()
 
     // Create booking (use service client to bypass RLS for public submissions)
     const { data: booking, error: bookingError } = await serviceSupabase
