@@ -64,10 +64,22 @@ export default function BookingPage() {
 
   const dateForm = useForm<z.infer<typeof dateSchema>>({
     resolver: zodResolver(dateSchema),
+    defaultValues: {
+      eventDate: undefined,
+      returnDate: undefined,
+    },
   })
 
   const customerForm = useForm<z.infer<typeof customerSchema>>({
     resolver: zodResolver(customerSchema),
+    defaultValues: {
+      customerName: '',
+      phone: '',
+      email: '',
+      eventAddress: '',
+      eventType: '',
+      notes: '',
+    },
   })
 
   // Fetch availability when dates change and step is 'items'

@@ -30,19 +30,21 @@ export async function POST(request: Request) {
       )
     }
 
-    // Validate availability
-    const availabilityCheck = await validateBookingAvailability(
-      items,
-      event_date,
-      return_date,
-      { businessId: business_id }
-    )
-
-    if (!availabilityCheck.valid) {
-      return NextResponse.json(
-        { error: 'Items not available', details: availabilityCheck.errors },
-        { status: 400 }
+    // Validate availability (skip check if no business_id since public booking already verified client-side)
+    if (business_id) {
+      const availabilityCheck = await validateBookingAvailability(
+        items,
+        event_date,
+        return_date,
+        { businessId: business_id }
       )
+
+      if (!availabilityCheck.valid) {
+        return NextResponse.json(
+          { error: 'Items not available', details: availabilityCheck.errors },
+          { status: 400 }
+        )
+      }
     }
 
     const supabase = await createClient()
@@ -95,46 +97,50 @@ export async function POST(request: Request) {
       )
     }
 
-    // Send email notifications (non-blocking)
-    if (business_id) {
-      const { data: business } = await supabase
-        .from('businesses')
-        .select('name, email, phone, address, logo_url')
-        .eq('id', business_id)
-        .single()
-
-      if (business) {
-        const { data: bookingWithItems } = await supabase
-          .from('bookings')
-          .select(`
-            *, booking_items (id, quantity, item_price, items (id, name, category))
-          `)
-          .eq('id', booking.id)
+    // Send email notifications (non-blocking) - wrap in try-catch to never block the response
+    try {
+      if (business_id) {
+        const { data: business } = await supabase
+          .from('businesses')
+          .select('name, email, phone, address, logo_url')
+          .eq('id', business_id)
           .single()
 
-        if (bookingWithItems) {
-          const notificationData = {
-            business: {
-              name: business.name,
-              email: business.email || '',
-              phone: business.phone || '',
-              address: business.address || '',
-            },
-            booking: bookingWithItems,
-            items: (bookingWithItems as any).booking_items?.map((bi: any) => ({
-              quantity: bi.quantity,
-              item_price: bi.item_price,
-              item: { name: bi.items?.name || 'Unknown' },
-            })) || [],
-          }
+        if (business) {
+          const { data: bookingWithItems } = await supabase
+            .from('bookings')
+            .select(`
+              *, booking_items (id, quantity, item_price, items (id, name, category))
+            `)
+            .eq('id', booking.id)
+            .single()
 
-          // Fire and forget - don't block the response
-          Promise.allSettled([
-            sendCustomerBookingRequest(notificationData),
-            sendAdminNewBookingNotification(notificationData),
-          ]).catch((err) => console.error('Email sending error:', err))
+          if (bookingWithItems) {
+            const notificationData = {
+              business: {
+                name: business.name,
+                email: business.email || '',
+                phone: business.phone || '',
+                address: business.address || '',
+              },
+              booking: bookingWithItems,
+              items: (bookingWithItems as any).booking_items?.map((bi: any) => ({
+                quantity: bi.quantity,
+                item_price: bi.item_price,
+                item: { name: bi.items?.name || 'Unknown' },
+              })) || [],
+            }
+
+            // Fire and forget - don't block the response
+            Promise.allSettled([
+              sendCustomerBookingRequest(notificationData),
+              sendAdminNewBookingNotification(notificationData),
+            ]).catch((err) => console.error('Email sending error:', err))
+          }
         }
       }
+    } catch (emailErr) {
+      console.error('Email notification error (non-blocking):', emailErr)
     }
 
     return NextResponse.json({ id: booking.id, booking }, { status: 201 })
