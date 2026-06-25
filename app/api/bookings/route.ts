@@ -52,6 +52,11 @@ export async function POST(request: Request) {
     const serviceSupabase = createServiceClient()
 
     // Create booking (use service client to bypass RLS for public submissions)
+    const total_amount = items.reduce(
+      (sum: number, item: any) => sum + Number(item.item_price) * Number(item.quantity),
+      0
+    )
+
     const { data: booking, error: bookingError } = await serviceSupabase
       .from('bookings')
       .insert({
@@ -65,6 +70,7 @@ export async function POST(request: Request) {
         notes,
         business_id: business_id || undefined,
         status: 'pending',
+        total_amount,
       })
       .select()
       .single()
