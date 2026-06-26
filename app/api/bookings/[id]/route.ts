@@ -92,50 +92,58 @@ export async function PATCH(
 
     // Send email notifications for status changes (non-blocking)
     if (status && status !== booking.status) {
-      const { data: bookingWithItems } = await supabase
-        .from('bookings')
-        .select(`
-          *, booking_items (id, quantity, item_price, items (id, name, category))
-        `)
-        .eq('id', params.id)
-        .single()
-
-      let business = null
-      if (booking.business_id) {
-        const { data: biz } = await supabase
-          .from('businesses')
-          .select('name, email, phone, address')
-          .eq('id', booking.business_id)
+      try {
+        const { data: bookingWithItems } = await supabase
+          .from('bookings')
+          .select(`
+            *, booking_items (id, quantity, item_price, items (id, name, category))
+          `)
+          .eq('id', params.id)
           .single()
-        business = biz
-      }
 
-      if (bookingWithItems && business) {
-        const notificationData = {
-          business: {
-            name: business.name,
-            email: business.email || '',
-            phone: business.phone || '',
-            address: business.address || '',
-          },
-          booking: bookingWithItems,
-          items: (bookingWithItems as any).booking_items?.map((bi: any) => ({
-            quantity: bi.quantity,
-            item_price: bi.item_price,
-            item: { name: bi.items?.name || 'Unknown' },
-          })) || [],
+        // Build business info — from DB if available, otherwise fallback
+        let business = null
+        if (booking.business_id) {
+          const { data: biz } = await supabase
+            .from('businesses')
+            .select('name, email, phone, address')
+            .eq('id', booking.business_id)
+            .single()
+          business = biz
         }
 
-        if (status === 'confirmed') {
-          Promise.allSettled([sendCustomerBookingConfirmed(notificationData)])
-            .catch((err) => console.error('Email error:', err))
-        } else if (status === 'cancelled') {
-          Promise.allSettled([sendCustomerBookingCancelled(notificationData)])
-            .catch((err) => console.error('Email error:', err))
-        } else if (status === 'completed') {
-          Promise.allSettled([sendCustomerBookingCompleted(notificationData)])
-            .catch((err) => console.error('Email error:', err))
+        // For public bookings (no business_id), build a minimal business object
+        const businessData = business || {
+          name: 'EventRental',
+          email: '',
+          phone: '',
+          address: '',
         }
+
+        if (bookingWithItems) {
+          const notificationData = {
+            business: businessData,
+            booking: bookingWithItems,
+            items: (bookingWithItems as any).booking_items?.map((bi: any) => ({
+              quantity: bi.quantity,
+              item_price: bi.item_price,
+              item: { name: bi.items?.name || 'Unknown' },
+            })) || [],
+          }
+
+          if (status === 'confirmed') {
+            Promise.allSettled([sendCustomerBookingConfirmed(notificationData)])
+              .catch((err) => console.error('[Email] Error:', err))
+          } else if (status === 'cancelled') {
+            Promise.allSettled([sendCustomerBookingCancelled(notificationData)])
+              .catch((err) => console.error('[Email] Error:', err))
+          } else if (status === 'completed') {
+            Promise.allSettled([sendCustomerBookingCompleted(notificationData)])
+              .catch((err) => console.error('[Email] Error:', err))
+          }
+        }
+      } catch (emailErr) {
+        console.error('[Email] Status notification error (non-blocking):', emailErr)
       }
     }
 

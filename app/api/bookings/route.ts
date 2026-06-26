@@ -105,50 +105,60 @@ export async function POST(request: Request) {
       )
     }
 
-    // Send email notifications (non-blocking) - wrap in try-catch to never block the response
+    // Send email notifications (non-blocking) — wrap in try-catch to never block the response
     try {
-      if (business_id) {
-        const { data: business } = await supabase
-          .from('businesses')
-          .select('name, email, phone, address, logo_url')
-          .eq('id', business_id)
-          .single()
+      // Fetch booking with items for email
+      const { data: bookingWithItems } = await supabase
+        .from('bookings')
+        .select(`
+          *, booking_items (id, quantity, item_price, items (id, name, category))
+        `)
+        .eq('id', booking.id)
+        .single()
 
-        if (business) {
-          const { data: bookingWithItems } = await supabase
-            .from('bookings')
-            .select(`
-              *, booking_items (id, quantity, item_price, items (id, name, category))
-            `)
-            .eq('id', booking.id)
+      if (bookingWithItems) {
+        // Build business info — either from DB or fallback for public bookings
+        let businessData = {
+          name: 'EventRental',
+          email: '',
+          phone: '',
+          address: '',
+        }
+
+        if (business_id) {
+          const { data: biz } = await supabase
+            .from('businesses')
+            .select('name, email, phone, address, logo_url')
+            .eq('id', business_id)
             .single()
-
-          if (bookingWithItems) {
-            const notificationData = {
-              business: {
-                name: business.name,
-                email: business.email || '',
-                phone: business.phone || '',
-                address: business.address || '',
-              },
-              booking: bookingWithItems,
-              items: (bookingWithItems as any).booking_items?.map((bi: any) => ({
-                quantity: bi.quantity,
-                item_price: bi.item_price,
-                item: { name: bi.items?.name || 'Unknown' },
-              })) || [],
+          if (biz) {
+            businessData = {
+              name: biz.name,
+              email: biz.email || '',
+              phone: biz.phone || '',
+              address: biz.address || '',
             }
-
-            // Fire and forget - don't block the response
-            Promise.allSettled([
-              sendCustomerBookingRequest(notificationData),
-              sendAdminNewBookingNotification(notificationData),
-            ]).catch((err) => console.error('Email sending error:', err))
           }
         }
+
+        const notificationData = {
+          business: businessData,
+          booking: bookingWithItems,
+          items: (bookingWithItems as any).booking_items?.map((bi: any) => ({
+            quantity: bi.quantity,
+            item_price: bi.item_price,
+            item: { name: bi.items?.name || 'Unknown' },
+          })) || [],
+        }
+
+        // Fire and forget — don't block the response
+        Promise.allSettled([
+          sendCustomerBookingRequest(notificationData),
+          sendAdminNewBookingNotification(notificationData),
+        ]).catch((err) => console.error('[Email] Unexpected email error:', err))
       }
     } catch (emailErr) {
-      console.error('Email notification error (non-blocking):', emailErr)
+      console.error('[Email] Notification error (non-blocking):', emailErr)
     }
 
     return NextResponse.json({ id: booking.id, booking }, { status: 201 })

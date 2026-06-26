@@ -5,7 +5,8 @@
  * 1. Sign up at https://resend.com
  * 2. Add your API key to .env.local: RESEND_API_KEY=re_...
  * 3. Add a verified domain or use the test sandbox
- * 4. Set the FROM_EMAIL env var (defaults to onbording@resend.dev for testing)
+ * 4. Set FROM_EMAIL (defaults to onboarding@resend.dev for testing)
+ * 5. For admin notifications, set ADMIN_EMAIL in .env.local
  */
 
 import type { Business, Booking, BookingItem, Item } from '@/lib/types/database.types'
@@ -13,7 +14,9 @@ import type { Business, Booking, BookingItem, Item } from '@/lib/types/database.
 // Email configuration
 const RESEND_API_KEY = process.env.RESEND_API_KEY || ''
 const FROM_EMAIL = process.env.FROM_EMAIL || 'onboarding@resend.dev'
-const FROM_NAME = process.env.FROM_NAME || 'Rental Booking System'
+const FROM_NAME = process.env.FROM_NAME || 'EventRental'
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || ''
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
 interface EmailPayload {
   from: string
@@ -92,6 +95,11 @@ function buildBookingEmailTemplate(
   templateType: 'customer-request' | 'customer-confirmed' | 'customer-cancelled' | 'customer-completed' | 'admin-notification'
 ): string {
   const { business, booking, items } = data
+
+  // Build admin link for status-change emails
+  const adminLink = `${APP_URL}/admin/bookings/${booking.id}`
+  const confirmationLink = `${APP_URL}/booking/confirmation?id=${booking.id}`
+
   const itemsHtml = items
     .map(
       (i) =>
@@ -117,7 +125,7 @@ function buildBookingEmailTemplate(
     'customer-confirmed': `Dear ${booking.customer_name},`,
     'customer-cancelled': `Dear ${booking.customer_name},`,
     'customer-completed': `Dear ${booking.customer_name},`,
-    'admin-notification': `Hi ${business.name} Team,`,
+    'admin-notification': `Hi Team,`,
   }
 
   const bodyMap: Record<string, string> = {
@@ -128,9 +136,9 @@ function buildBookingEmailTemplate(
     'customer-cancelled':
       `Your booking has been cancelled. If you have any questions, please contact us.`,
     'customer-completed':
-      `Your rental period has ended. Thank you for choosing ${business.name}! We hope everything went well.`,
+      `Your rental period has ended. Thank you for choosing EventRental! We hope everything went well.`,
     'admin-notification':
-      `A new booking request has been submitted by ${booking.customer_name}. Please review it in the admin dashboard.`,
+      `A new booking request has been submitted by ${booking.customer_name}. Review it in the admin dashboard:`,
   }
 
   const title = titleMap[templateType]
@@ -198,15 +206,37 @@ function buildBookingEmailTemplate(
 
       ${booking.notes ? `<div class="section"><h2>Notes</h2><p style="color: #6b7280;">${booking.notes}</p></div>` : ''}
 
+      ${templateType === 'customer-request' ? `
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${confirmationLink}" style="display: inline-block; padding: 12px 24px; background-color: #7c3aed; color: #fff; text-decoration: none; border-radius: 8px; font-weight: 600;">View Booking Details</a>
+        </div>
+      ` : ''}
+
+      ${templateType === 'customer-confirmed' ? `
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${confirmationLink}" style="display: inline-block; padding: 12px 24px; background-color: #059669; color: #fff; text-decoration: none; border-radius: 8px; font-weight: 600;">View Booking Details</a>
+        </div>
+      ` : ''}
+
+      ${templateType === 'admin-notification' ? `
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${adminLink}" style="display: inline-block; padding: 12px 24px; background-color: #2563eb; color: #fff; text-decoration: none; border-radius: 8px; font-weight: 600;">Review in Admin Dashboard</a>
+        </div>
+      ` : ''}
+
+      <div style="margin: 20px 0; padding: 12px; background-color: #f3f4f6; border-radius: 8px; font-size: 13px; color: #6b7280;">
+        <strong>Booking Reference:</strong> ${booking.id.substring(0, 8).toUpperCase()}
+      </div>
+
       <div class="business-info">
-        <strong>${business.name}</strong><br>
+        <strong>${business.name || 'EventRental'}</strong><br>
         ${business.phone ? `Phone: ${business.phone}<br>` : ''}
         ${business.email ? `Email: ${business.email}<br>` : ''}
         ${business.address ? business.address : ''}
       </div>
 
       <div class="footer">
-        <p>This email was sent from ${business.name}. If you have any questions, please contact us.</p>
+        <p>This email was sent from ${business.name || 'EventRental'}. If you have any questions, please contact us.</p>
       </div>
     </div>
   </div>
@@ -272,19 +302,22 @@ export async function sendCustomerBookingCompleted(
 
 /**
  * Send a new booking notification to the business admin
+ * Falls back to ADMIN_EMAIL env var if business email isn't available.
  */
 export async function sendAdminNewBookingNotification(
   data: BookingNotificationData
 ): Promise<{ success: boolean; error?: string }> {
-  const adminEmail = data.business.email
-  if (!adminEmail) {
-    console.warn('[Email Service] No business email configured for admin notification.')
-    return { success: false, error: 'No business email configured' }
+  const recipient = data.business.email || ADMIN_EMAIL
+
+  if (!recipient) {
+    console.warn('[Email Service] No recipient for admin notification. Set ADMIN_EMAIL env var or configure a business email.')
+    console.warn('[Email Service] Would have notified admin about booking from:', data.booking.customer_name)
+    return { success: false, error: 'No admin email configured' }
   }
 
   return sendEmail({
     from: `${FROM_NAME} <${FROM_EMAIL}>`,
-    to: adminEmail,
+    to: recipient,
     subject: `New Booking Request from ${data.booking.customer_name}`,
     html: buildBookingEmailTemplate(data, 'admin-notification'),
   })
